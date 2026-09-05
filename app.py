@@ -5,7 +5,6 @@ import os
 
 app = Flask(__name__, static_folder='.', template_folder='.')
 
-# Minskad lista för stabilare drift på gratis-servrar
 ASSETS = {
     'stocks': [
         'AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD',
@@ -65,7 +64,7 @@ def fetch_single_ticker(symbol, category, raw_period='1d'):
         return {
             'symbol': display_symbol,
             'raw_symbol': symbol,
-            'name': ticker.info.get('shortName', display_symbol) if hasattr(ticker, 'info') else display_symbol,
+            'name': display_symbol,
             'price': round(float(current_price), 2),
             'changePercent': round(float(change_pct), 2),
             'category': category
@@ -87,7 +86,6 @@ def get_market_data():
     all_results = []
     tasks = []
     
-    # Sänkt max_workers till 5 för att förhindra att Yahoo blockerar förfrågningarna
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         for cat, symbols in ASSETS.items():
             if category_filter not in ['all', 'gainers', 'losers', 'favorites', 'portfolio'] and category_filter != cat:
@@ -124,12 +122,26 @@ def get_stock_detail(symbol):
                 'value': round(float(row['Close']), 2)
             })
 
+        # Hämtar info säkert utan att riskera krasch
+        short_name = symbol
+        pe_ratio = 'N/A'
+        div_yield = 0
+
+        try:
+            info = ticker.info
+            short_name = info.get('shortName', symbol)
+            pe_ratio = round(info.get('trailingPE'), 2) if info.get('trailingPE') else 'N/A'
+            if info.get('dividendYield'):
+                div_yield = round(info.get('dividendYield') * 100, 2)
+        except Exception:
+            pass  # Om info-anropet spärras används standardvärdena ovan
+
         return jsonify({
             'symbol': symbol,
-            'shortName': symbol,
+            'shortName': short_name,
             'currentPrice': round(float(hist['Close'].iloc[-1]), 2),
-            'peRatio': 'N/A',
-            'dividendYield': 0,
+            'peRatio': pe_ratio,
+            'dividendYield': div_yield,
             'category': get_asset_category(symbol),
             'chartData': chart_data
         })

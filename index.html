@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G.OPTION.L - Space Bubbles & Live Data</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background-color: #05070f;
+            color: #ffffff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #alert-banner-container {
+            position: fixed;
+            top: 65px;
+            right: 20px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 320px;
+        }
+
+        .alert-toast {
+            background: #141b2d;
+            border: 1px solid #87CEEB;
+            box-shadow: 0 0 15px rgba(135, 206, 235, 0.4);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .alert-toast strong { color: #87CEEB; }
+
+        header {
+            height: 55px;
+            min-height: 55px;
+            background: #0b0f19;
+            border-bottom: 1px solid #1a233a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 100;
+        }
+
+        .g-logo {
+            font-size: 20px;
+            font-weight: 800;
+            color: #87CEEB;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .portfolio-summary {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #141b2d;
+            padding: 4px 12px;
+            border-radius: 8px;
+            border: 1px solid #222d47;
+            font-size: 12px;
+        }
+
+        .portfolio-val { font-weight: bold; color: #87CEEB; }
+        .portfolio-pnl.pos { color: #22c55e; font-weight: bold; }
+        .portfolio-pnl.neg { color: #ef4444; font-weight: bold; }
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .time-filters, .view-toggle {
+            display: flex;
+            background: #141b2d;
+            border-radius: 8px;
+            padding: 3px;
+            border: 1px solid #222d47;
+        }
+
+        .btn-tab {
+            background: transparent;
+            border: none;
+            color: #8b9bb4;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-tab.active, .btn-tab:hover {
+            background: #87CEEB;
+            color: #05070f;
+        }
+
+        .dropdown-btn {
+            background: #141b2d;
+            border: 1px solid #222d47;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .search-container {
+            position: relative;
+        }
+
+        .search-container input {
+            background: #141b2d;
+            border: 1px solid #222d47;
+            border-radius: 8px;
+            padding: 6px 12px 6px 30px;
+            color: #fff;
+            font-size: 12px;
+            outline: none;
+            width: 160px;
+        }
+
+        .search-container::before {
+            content: "🔍";
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            opacity: 0.5;
+        }
+
+        .content-area {
+            flex: 1;
+            width: 100vw;
+            height: calc(100vh - 55px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #viewport {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: radial-gradient(circle at center, #0a0f1d 0%, #03050a 100%);
+        }
+
+        .star-bubble {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            will-change: left, top;
+            transition: background 0.5s ease, border-color 0.2s ease, width 0.3s ease, height 0.3s ease;
+        }
+
+        .star-bubble:active { cursor: grabbing; }
+
+        /* Fejdad färg utåt mot kanten */
+        .star-bubble.positive {
+            background: radial-gradient(circle at center, rgba(34, 197, 94, 0.9) 0%, rgba(34, 197, 94, 0.35) 55%, rgba(5, 46, 22, 0.05) 100%);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.25);
+        }
+
+        .star-bubble.negative {
+            background: radial-gradient(circle at center, rgba(239, 68, 68, 0.9) 0%, rgba(239, 68, 68, 0.35) 55%, rgba(69, 10, 10, 0.05) 100%);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.25);
+        }
+
+        .star-bubble:hover {
+            z-index: 1000 !important;
+            border-color: #87CEEB;
+            box-shadow: 0 0 25px rgba(135, 206, 235, 0.4);
+        }
+
+        .star-shape { font-size: 14px; color: #ffd700; margin-bottom: 2px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .bubble-symbol { font-weight: 800; font-size: 15px; color: #ffffff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .bubble-change { font-size: 12px; font-weight: 700; color: #ffffff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+
+        #list-view {
+            display: none;
+            width: 100%;
+            height: 100%;
+            background: #0b0f19;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        table { width: 100%; border-collapse: collapse; color: #fff; font-size: 13px; }
+        th { text-align: left; padding: 12px; color: #8b9bb4; border-bottom: 1px solid #1a233a; }
+        td { padding: 12px; border-bottom: 1px solid #141b2d; }
+        tr:hover { background: #141b2d; cursor: pointer; }
+
+        .pos-text { color: #22c55e; font-weight: bold; }
+        .neg-text { color: #ef4444; font-weight: bold; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-card {
+            background: #0b0f19;
+            border: 1px solid #1a233a;
+            border-radius: 12px;
+            width: 850px;
+            max-width: 90vw;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        .modal-header { display: flex; align-items: center; gap: 12px; }
+        .modal-close { position: absolute; top: 15px; right: 20px; background: none; border: none; color: #8b9bb4; font-size: 24px; cursor: pointer; }
+
+        .fav-star-btn {
+            background: transparent;
+            border: 1px solid #222d47;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            color: #8b9bb4;
+            transition: all 0.2s;
+        }
+
+        .fav-star-btn.active { color: #ffd700; border-color: #ffd700; background: rgba(255, 215, 0, 0.1); }
+        .modal-title { font-size: 20px; font-weight: bold; }
+
+        .modal-body {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+
+        .stats-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #141b2d;
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .stat-row { display: flex; justify-content: space-between; font-size: 13px; }
+        .stat-label { color: #8b9bb4; }
+        .stat-value { font-weight: bold; color: #87CEEB; }
+
+        .section-box {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #222d47;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .section-box h4 { font-size: 11px; color: #8b9bb4; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .input-row { display: flex; gap: 8px; }
+        .input-row input {
+            width: 100%;
+            background: #0b0f19;
+            border: 1px solid #222d47;
+            color: #fff;
+            padding: 6px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .btn-action {
+            background: #87CEEB;
+            color: #05070f;
+            border: none;
+            padding: 6px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #modal-chart { height: 320px; background: #141b2d; border-radius: 8px; overflow: hidden; }
+
+        .filter-menu {
+            display: none;
+            position: absolute;
+            top: 60px; right: 240px;
+            background: #0b0f19;
+            border: 1px solid #1a233a;
+            border-radius: 8px;
+            padding: 12px;
+            z-index: 1500;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            flex-direction: column;
+            gap: 6px;
+            min-width: 190px;
+        }
+
+        .filter-option {
+            font-size: 13px;
+            padding: 8px 12px;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        .filter-option:hover { background: #141b2d; color: #87CEEB; }
+        .filter-divider { height: 1px; background: #1a233a; margin: 4px 0; }
+    </style>
+</head>
+<body>
+
+    <div id="alert-banner-container"></div>
+
+    <header>
+        <div class="g-logo" id="logo-home">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#87CEEB" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            G.OPTION.L
+        </div>
+
+        <div class="portfolio-summary">
+            <div>Portfolio: <span class="portfolio-val" id="total-portfolio-val">$0.00</span></div>
+            <div>P/L: <span class="portfolio-pnl" id="total-portfolio-pnl">$0.00 (0%)</span></div>
+        </div>
+
+        <div class="nav-controls">
+            <div class="time-filters">
+                <button class="btn-tab active" data-period="1d">1D</button>
+                <button class="btn-tab" data-period="1w">1W</button>
+                <button class="btn-tab" data-period="1m">1M</button>
+                <button class="btn-tab" data-period="1y">1Y</button>
+            </div>
+
+            <button class="dropdown-btn" id="toggle-filter-menu">
+                <span id="selected-filter-label">All Assets</span> <span style="font-size:8px;">▼</span>
+            </button>
+
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search / Enter...">
+            </div>
+
+            <div class="view-toggle">
+                <button class="btn-tab active" id="btn-view-bubbles">Bubbles</button>
+                <button class="btn-tab" id="btn-view-list">List</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="filter-menu" id="filter-menu">
+        <div class="filter-option" data-category="all">All Assets</div>
+        <div class="filter-option" data-category="portfolio">💼 My Holdings</div>
+        <div class="filter-option" data-category="favorites">⭐ Favorites</div>
+        <div class="filter-divider"></div>
+        <div class="filter-option" data-category="gainers">📈 Top Gainers</div>
+        <div class="filter-option" data-category="losers">📉 Top Losers</div>
+        <div class="filter-divider"></div>
+        <div class="filter-option" data-category="stocks">📈 Stocks</div>
+        <div class="filter-option" data-category="index">📊 Index Funds</div>
+        <div class="filter-option" data-category="metals">🥇 Precious Metals</div>
+        <div class="filter-option" data-category="forex">💱 Forex</div>
+        <div class="filter-option" data-category="crypto">🪙 Crypto</div>
+    </div>
+
+    <div class="content-area">
+        <div id="viewport"></div>
+
+        <div id="list-view">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Symbol</th>
+                        <th>Name</th>
+                        <th>Price</th>
+                        <th>Change</th>
+                        <th>Holdings</th>
+                        <th>Total Value</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal-card">
+            <button class="modal-close" id="modal-close">&times;</button>
+            <div class="modal-header">
+                <div class="modal-title" id="m-title">Loading...</div>
+                <button class="fav-star-btn" id="fav-star-toggle">★ Favorite</button>
+            </div>
+            <div class="modal-body">
+                <div class="stats-grid">
+                    <div class="stat-row">
+                        <span class="stat-label">Current Price</span>
+                        <span class="stat-value" id="m-price">$0.00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Category</span>
+                        <span class="stat-value" id="m-cat">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">P/E Ratio</span>
+                        <span class="stat-value" id="m-pe">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Dividend Yield</span>
+                        <span class="stat-value" id="m-div">-</span>
+                    </div>
+
+                    <div class="section-box">
+                        <h4>My Holdings</h4>
+                        <div class="input-row">
+                            <input type="number" id="hold-amount" placeholder="Amount" step="any">
+                            <input type="number" id="hold-buy-price" placeholder="Avg Price ($)" step="any">
+                        </div>
+                        <button class="btn-action" id="btn-save-holding">Save Holdings</button>
+                    </div>
+
+                    <div class="section-box">
+                        <h4>🔔 Set Price Alerts ($)</h4>
+                        <div class="input-row">
+                            <input type="number" id="alert-high" placeholder="Above ($)" step="any">
+                            <input type="number" id="alert-low" placeholder="Below ($)" step="any">
+                        </div>
+                        <button class="btn-action" id="btn-save-alert" style="background: #22c55e; color: #fff;">Save Alert</button>
+                    </div>
+                </div>
+                <div id="modal-chart"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawMarketData = [];
+        let filteredMarketData = [];
+        let bubbles = [];
+        let activePeriod = '1d';
+        let activeCategory = 'all';
+        let currentModalSymbol = '';
+
+        let draggedBubble = null;
+        let dragOffsetX = 0, dragOffsetY = 0;
+        let lastMouseX = 0, lastMouseY = 0;
+        let isDragging = false;
+        let dragMovedDistance = 0;
+
+        let favorites = JSON.parse(localStorage.getItem('g_favorites')) || [];
+        let holdings = JSON.parse(localStorage.getItem('g_holdings')) || {};
+        let priceAlerts = JSON.parse(localStorage.getItem('g_price_alerts')) || {}; 
+
+        const viewport = document.getElementById('viewport');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            loadMarketData();
+            animatePhysics();
+
+            setInterval(() => loadMarketData(true), 15000);
+        });
+
+        function setupEventListeners() {
+            document.getElementById('logo-home').addEventListener('click', () => {
+                activeCategory = 'all';
+                document.getElementById('selected-filter-label').textContent = 'All Assets';
+                document.getElementById('search-input').value = '';
+                applyFilters();
+            });
+
+            document.querySelectorAll('.time-filters .btn-tab').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.time-filters .btn-tab').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    activePeriod = e.target.getAttribute('data-period');
+                    loadMarketData();
+                });
+            });
+
+            document.getElementById('btn-view-bubbles').addEventListener('click', (e) => setActiveView('bubbles', e.target));
+            document.getElementById('btn-view-list').addEventListener('click', (e) => setActiveView('list', e.target));
+
+            const filterBtn = document.getElementById('toggle-filter-menu');
+            const filterMenu = document.getElementById('filter-menu');
+
+            filterBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                filterMenu.style.display = filterMenu.style.display === 'flex' ? 'none' : 'flex';
+            });
+
+            document.addEventListener('click', () => filterMenu.style.display = 'none');
+
+            document.querySelectorAll('.filter-option').forEach(opt => {
+                opt.addEventListener('click', (e) => {
+                    activeCategory = e.target.getAttribute('data-category');
+                    document.getElementById('selected-filter-label').textContent = e.target.textContent;
+                    filterMenu.style.display = 'none';
+                    applyFilters();
+                });
+            });
+
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', applyFilters);
+
+            document.getElementById('fav-star-toggle').addEventListener('click', () => {
+                if (!currentModalSymbol) return;
+                const index = favorites.indexOf(currentModalSymbol);
+                if (index > -1) favorites.splice(index, 1);
+                else favorites.push(currentModalSymbol);
+
+                localStorage.setItem('g_favorites', JSON.stringify(favorites));
+                updateFavStarUI();
+                applyFilters();
+            });
+
+            document.getElementById('btn-save-holding').addEventListener('click', () => {
+                const amount = parseFloat(document.getElementById('hold-amount').value) || 0;
+                const buyPrice = parseFloat(document.getElementById('hold-buy-price').value) || 0;
+
+                if (amount > 0) holdings[currentModalSymbol] = { amount, buyPrice };
+                else delete holdings[currentModalSymbol];
+
+                localStorage.setItem('g_holdings', JSON.stringify(holdings));
+                calculatePortfolioStats();
+                applyFilters();
+                closeModal();
+            });
+
+            document.getElementById('btn-save-alert').addEventListener('click', () => {
+                const high = parseFloat(document.getElementById('alert-high').value) || null;
+                const low = parseFloat(document.getElementById('alert-low').value) || null;
+
+                if (high || low) {
+                    priceAlerts[currentModalSymbol] = { high, low };
+                } else {
+                    delete priceAlerts[currentModalSymbol];
+                }
+
+                localStorage.setItem('g_price_alerts', JSON.stringify(priceAlerts));
+                triggerToastAlert("Alert Saved!", `Alert updated for ${currentModalSymbol}`);
+                closeModal();
+            });
+
+            document.getElementById('modal-close').addEventListener('click', closeModal);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+        function setActiveView(view, btn) {
+            document.querySelectorAll('.view-toggle .btn-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            if (view === 'bubbles') {
+                document.getElementById('viewport').style.display = 'block';
+                document.getElementById('list-view').style.display = 'none';
+                updateBubblesUI();
+            } else {
+                document.getElementById('viewport').style.display = 'none';
+                document.getElementById('list-view').style.display = 'block';
+                renderTable();
+            }
+        }
+
+        async function loadMarketData(isSilent = false) {
+            try {
+                const res = await fetch(`/api/market-data?period=${activePeriod}`);
+                rawMarketData = await res.json();
+                calculatePortfolioStats();
+                checkPriceAlerts();
+                applyFilters(isSilent);
+            } catch (err) {
+                console.error("Error loading market data:", err);
+            }
+        }
+
+        function checkPriceAlerts() {
+            rawMarketData.forEach(item => {
+                const alertConfig = priceAlerts[item.raw_symbol];
+                if (alertConfig) {
+                    if (alertConfig.high && item.price >= alertConfig.high) {
+                        triggerToastAlert(`🚀 PRICE ALERT: ${item.symbol}`, `Reached above $${alertConfig.high} (Now: $${item.price})`);
+                        playAlertSound();
+                        delete priceAlerts[item.raw_symbol].high; 
+                        localStorage.setItem('g_price_alerts', JSON.stringify(priceAlerts));
+                    } else if (alertConfig.low && item.price <= alertConfig.low) {
+                        triggerToastAlert(`🔻 PRICE ALERT: ${item.symbol}`, `Fell below $${alertConfig.low} (Now: $${item.price})`);
+                        playAlertSound();
+                        delete priceAlerts[item.raw_symbol].low; 
+                        localStorage.setItem('g_price_alerts', JSON.stringify(priceAlerts));
+                    }
+                }
+            });
+        }
+
+        function triggerToastAlert(title, message) {
+            const container = document.getElementById('alert-banner-container');
+            const toast = document.createElement('div');
+            toast.className = 'alert-toast';
+            toast.innerHTML = `<div><strong>${title}</strong><br><span style="font-size:12px; color:#8b9bb4;">${message}</span></div>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => toast.remove(), 500);
+            }, 5000);
+        }
+
+        function playAlertSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch(e) {}
+        }
+
+        function calculatePortfolioStats() {
+            let totalVal = 0;
+            let totalCost = 0;
+
+            rawMarketData.forEach(item => {
+                const h = holdings[item.raw_symbol];
+                if (h) {
+                    totalVal += h.amount * item.price;
+                    totalCost += h.amount * h.buyPrice;
+                }
+            });
+
+            const diff = totalVal - totalCost;
+            const pct = totalCost > 0 ? (diff / totalCost) * 100 : 0;
+
+            document.getElementById('total-portfolio-val').textContent = `$${totalVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            const pnlEl = document.getElementById('total-portfolio-pnl');
+            pnlEl.textContent = `${diff >= 0 ? '+' : ''}$${diff.toFixed(2)} (${pct.toFixed(2)}%)`;
+            pnlEl.className = `portfolio-pnl ${diff >= 0 ? 'pos' : 'neg'}`;
+        }
+
+        function applyFilters(isSilent = false) {
+            const searchQuery = document.getElementById('search-input').value.trim().toLowerCase();
+
+            let dataCopy = [...rawMarketData];
+
+            if (activeCategory === 'gainers') {
+                dataCopy.sort((a, b) => b.changePercent - a.changePercent);
+            } else if (activeCategory === 'losers') {
+                dataCopy.sort((a, b) => a.changePercent - b.changePercent);
+            }
+
+            filteredMarketData = dataCopy.filter(item => {
+                let matchesCategory = true;
+
+                if (activeCategory === 'favorites') matchesCategory = favorites.includes(item.raw_symbol);
+                else if (activeCategory === 'portfolio') matchesCategory = holdings[item.raw_symbol] && holdings[item.raw_symbol].amount > 0;
+                else if (activeCategory === 'gainers') matchesCategory = item.changePercent > 0;
+                else if (activeCategory === 'losers') matchesCategory = item.changePercent < 0;
+                else if (activeCategory !== 'all') matchesCategory = item.category === activeCategory;
+
+                const matchesSearch = item.symbol.toLowerCase().includes(searchQuery) || item.name.toLowerCase().includes(searchQuery);
+                return matchesCategory && matchesSearch;
+            });
+
+            if (isSilent) updateBubblesUI();
+            else rebuildBubbles();
+
+            renderTable();
+        }
+
+        function getDimensions() {
+            return {
+                width: viewport.clientWidth || window.innerWidth || 1200,
+                height: viewport.clientHeight || (window.innerHeight - 55) || 800
+            };
+        }
+
+        function rebuildBubbles() {
+            viewport.innerHTML = '';
+            bubbles = [];
+            const { width, height } = getDimensions();
+
+            filteredMarketData.forEach((item) => {
+                const isPos = item.changePercent >= 0;
+                const size = Math.max(75, Math.min(160, 85 + Math.abs(item.changePercent) * 7));
+
+                const el = document.createElement('div');
+                el.className = `star-bubble ${isPos ? 'positive' : 'negative'}`;
+                el.style.width = `${size}px`;
+                el.style.height = `${size}px`;
+
+                const isFav = favorites.includes(item.raw_symbol);
+                const isHeld = holdings[item.raw_symbol] && holdings[item.raw_symbol].amount > 0;
+                const hasAlert = priceAlerts[item.raw_symbol] && (priceAlerts[item.raw_symbol].high || priceAlerts[item.raw_symbol].low);
+
+                el.innerHTML = `
+                    <div class="star-shape">${hasAlert ? '🔔' : (isFav ? '⭐' : (isHeld ? '💼' : '★'))}</div>
+                    <div class="bubble-symbol">${item.symbol}</div>
+                    <div class="bubble-change">${isPos ? '+' : ''}${item.changePercent}%</div>
+                `;
+
+                const maxX = Math.max(20, width - size - 20);
+                const maxY = Math.max(20, height - size - 20);
+                const x = Math.random() * maxX;
+                const y = Math.random() * maxY;
+
+                // Sänkt grundhastighet för lugnare rörelse
+                const bubbleObj = {
+                    el, x, y,
+                    vx: (Math.random() - 0.5) * 0.4,
+                    vy: (Math.random() - 0.5) * 0.4,
+                    radius: size / 2,
+                    symbol: item.raw_symbol,
+                    isGrabbed: false
+                };
+
+                el.style.left = `${x}px`;
+                el.style.top = `${y}px`;
+                el.addEventListener('mousedown', (e) => onMouseDown(e, bubbleObj));
+                viewport.appendChild(el);
+                bubbles.push(bubbleObj);
+            });
+        }
+
+        function updateBubblesUI() {
+            filteredMarketData.forEach(item => {
+                const b = bubbles.find(bObj => bObj.symbol === item.raw_symbol);
+                if (b) {
+                    const isPos = item.changePercent >= 0;
+                    const size = Math.max(75, Math.min(160, 85 + Math.abs(item.changePercent) * 7));
+                    const isFav = favorites.includes(item.raw_symbol);
+                    const isHeld = holdings[item.raw_symbol] && holdings[item.raw_symbol].amount > 0;
+                    const hasAlert = priceAlerts[item.raw_symbol] && (priceAlerts[item.raw_symbol].high || priceAlerts[item.raw_symbol].low);
+
+                    b.radius = size / 2;
+                    b.el.style.width = `${size}px`;
+                    b.el.style.height = `${size}px`;
+                    b.el.className = `star-bubble ${isPos ? 'positive' : 'negative'}`;
+                    b.el.querySelector('.star-shape').textContent = hasAlert ? '🔔' : (isFav ? '⭐' : (isHeld ? '💼' : '★'));
+                    b.el.querySelector('.bubble-change').textContent = `${isPos ? '+' : ''}${item.changePercent}%`;
+                }
+            });
+        }
+
+        function onMouseDown(e, bubble) {
+            e.preventDefault();
+            draggedBubble = bubble;
+            draggedBubble.isGrabbed = true;
+            isDragging = true;
+            dragMovedDistance = 0;
+
+            const rect = viewport.getBoundingClientRect();
+            dragOffsetX = (e.clientX - rect.left) - bubble.x;
+            dragOffsetY = (e.clientY - rect.top) - bubble.y;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            bubble.vx = 0; bubble.vy = 0;
+        }
+
+        function onMouseMove(e) {
+            if (!isDragging || !draggedBubble) return;
+
+            const rect = viewport.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const dx = e.clientX - lastMouseX;
+            const dy = e.clientY - lastMouseY;
+            dragMovedDistance += Math.abs(dx) + Math.abs(dy);
+
+            // Mjukare kast-känsla vid drag
+            draggedBubble.vx = dx * 0.3;
+            draggedBubble.vy = dy * 0.3;
+            draggedBubble.x = mouseX - dragOffsetX;
+            draggedBubble.y = mouseY - dragOffsetY;
+
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        }
+
+        function onMouseUp() {
+            if (isDragging && draggedBubble) {
+                draggedBubble.isGrabbed = false;
+                if (dragMovedDistance < 5) openModal(draggedBubble.symbol);
+                draggedBubble = null;
+                isDragging = false;
+            }
+        }
+
+        function animatePhysics() {
+            const { width, height } = getDimensions();
+
+            bubbles.forEach((b, i) => {
+                if (!b.isGrabbed) {
+                    b.x += b.vx;
+                    b.y += b.vy;
+                    // Högre friktion (0.98 istället för 0.992) och lägre drivkraft för långsammare rörelse
+                    b.vx *= 0.98;
+                    b.vy *= 0.98;
+
+                    if (Math.abs(b.vx) < 0.05) b.vx += (Math.random() - 0.5) * 0.03;
+                    if (Math.abs(b.vy) < 0.05) b.vy += (Math.random() - 0.5) * 0.03;
+                }
+
+                const size = b.radius * 2;
+                if (b.x <= 0) { b.x = 0; b.vx *= -0.6; }
+                if (b.x + size >= width) { b.x = Math.max(0, width - size); b.vx *= -0.6; }
+                if (b.y <= 0) { b.y = 0; b.vy *= -0.6; }
+                if (b.y + size >= height) { b.y = Math.max(0, height - size); b.vy *= -0.6; }
+
+                for (let j = i + 1; j < bubbles.length; j++) {
+                    const b2 = bubbles[j];
+                    const dx = (b2.x + b2.radius) - (b.x + b.radius);
+                    const dy = (b2.y + b2.radius) - (b.y + b.radius);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = b.radius + b2.radius;
+
+                    if (dist < minDist && dist > 0) {
+                        const overlap = minDist - dist;
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+
+                        if (!b.isGrabbed) { b.x -= nx * overlap * 0.5; b.y -= ny * overlap * 0.5; }
+                        if (!b2.isGrabbed) { b2.x += nx * overlap * 0.5; b2.y += ny * overlap * 0.5; }
+
+                        const tempVx = b.vx; const tempVy = b.vy;
+                        b.vx = b2.vx * 0.7; b.vy = b2.vy * 0.7;
+                        b2.vx = tempVx * 0.7; b2.vy = tempVy * 0.7;
+                    }
+                }
+
+                b.el.style.left = `${b.x}px`;
+                b.el.style.top = `${b.y}px`;
+            });
+
+            requestAnimationFrame(animatePhysics);
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            filteredMarketData.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                const isPos = item.changePercent >= 0;
+                const isFav = favorites.includes(item.raw_symbol);
+                const h = holdings[item.raw_symbol];
+
+                const heldText = h ? `${h.amount}` : '-';
+                const totalValText = h ? `$${(h.amount * item.price).toFixed(2)}` : '-';
+
+                tr.innerHTML = `
+                    <td>${index + 1} ${isFav ? '⭐' : ''}</td>
+                    <td><strong>${item.symbol}</strong></td>
+                    <td>${item.name}</td>
+                    <td>$${item.price}</td>
+                    <td class="${isPos ? 'pos-text' : 'neg-text'}">${isPos ? '+' : ''}${item.changePercent}%</td>
+                    <td>${heldText}</td>
+                    <td>${totalValText}</td>
+                `;
+
+                tr.addEventListener('click', () => openModal(item.raw_symbol));
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function openModal(symbol) {
+            currentModalSymbol = symbol;
+            const modal = document.getElementById('modal-overlay');
+            modal.style.display = 'flex';
+
+            updateFavStarUI();
+
+            const h = holdings[symbol] || { amount: '', buyPrice: '' };
+            document.getElementById('hold-amount').value = h.amount;
+            document.getElementById('hold-buy-price').value = h.buyPrice;
+
+            const pa = priceAlerts[symbol] || { high: '', low: '' };
+            document.getElementById('alert-high').value = pa.high || '';
+            document.getElementById('alert-low').value = pa.low || '';
+
+            document.getElementById('m-title').textContent = symbol.toUpperCase();
+
+            try {
+                const res = await fetch(`/api/stock/${symbol}`);
+                const data = await res.json();
+
+                if (data.error) return;
+
+                const categoryNames = {
+                    stocks: 'Stocks',
+                    index: 'Index Funds',
+                    metals: 'Precious Metals',
+                    forex: 'Forex',
+                    crypto: 'Crypto'
+                };
+
+                document.getElementById('m-title').textContent = `${data.shortName} (${data.symbol})`;
+                document.getElementById('m-price').textContent = `$${data.currentPrice}`;
+                document.getElementById('m-cat').textContent = categoryNames[data.category] || data.category || 'N/A';
+                document.getElementById('m-pe').textContent = data.peRatio || 'N/A';
+                document.getElementById('m-div').textContent = data.dividendYield ? `${data.dividendYield}%` : '0%';
+
+                renderChart(data.chartData);
+            } catch (err) {
+                console.error("Error fetching data:", err);
+            }
+        }
+
+        function updateFavStarUI() {
+            const starBtn = document.getElementById('fav-star-toggle');
+            if (favorites.includes(currentModalSymbol)) {
+                starBtn.classList.add('active');
+                starBtn.innerHTML = '⭐ Favorite';
+            } else {
+                starBtn.classList.remove('active');
+                starBtn.innerHTML = '★ Favorite';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').style.display = 'none';
+        }
+
+        function renderChart(chartData) {
+            const container = document.getElementById('modal-chart');
+            container.innerHTML = '';
+
+            const chart = LightweightCharts.createChart(container, {
+                layout: { backgroundColor: '#141b2d', textColor: '#8b9bb4' },
+                grid: { vertLines: { color: '#1a233a' }, horzLines: { color: '#1a233a' } },
+                width: container.clientWidth,
+                height: 320,
+            });
+
+            const lineSeries = chart.addLineSeries({ color: '#87CEEB', lineWidth: 2 });
+            lineSeries.setData(chartData);
+        }
+    </script>
+</body>
+</html>

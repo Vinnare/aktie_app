@@ -192,7 +192,6 @@
 
         .star-bubble:active { cursor: grabbing; }
 
-        /* Fejdad färg utåt mot kanten */
         .star-bubble.positive {
             background: radial-gradient(circle at center, rgba(34, 197, 94, 0.9) 0%, rgba(34, 197, 94, 0.35) 55%, rgba(5, 46, 22, 0.05) 100%);
             box-shadow: 0 0 20px rgba(34, 197, 94, 0.25);
@@ -752,7 +751,6 @@
                 const x = Math.random() * maxX;
                 const y = Math.random() * maxY;
 
-                // Sänkt grundhastighet för lugnare rörelse
                 const bubbleObj = {
                     el, x, y,
                     vx: (Math.random() - 0.5) * 0.4,
@@ -816,7 +814,6 @@
             const dy = e.clientY - lastMouseY;
             dragMovedDistance += Math.abs(dx) + Math.abs(dy);
 
-            // Mjukare kast-känsla vid drag
             draggedBubble.vx = dx * 0.3;
             draggedBubble.vy = dy * 0.3;
             draggedBubble.x = mouseX - dragOffsetX;
@@ -842,7 +839,6 @@
                 if (!b.isGrabbed) {
                     b.x += b.vx;
                     b.y += b.vy;
-                    // Högre friktion (0.98 istället för 0.992) och lägre drivkraft för långsammare rörelse
                     b.vx *= 0.98;
                     b.vy *= 0.98;
 

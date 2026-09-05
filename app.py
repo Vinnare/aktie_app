@@ -101,13 +101,14 @@ def fetch_single_ticker(symbol, category, raw_period='1d'):
 def index():
     """Serverar index.html direkt från projektets rotmapp."""
     if not os.path.exists('index.html'):
-        return "FELETS ORSAK: index.html saknas i mappen C:\\Users\\armin\\OneDrive\\Skrivbord\\aktie_app", 404
+        return "FELETS ORSAK: index.html saknas i mappen", 404
     return send_from_directory('.', 'index.html')
 
 @app.route('/api/market-data')
 def get_market_data():
     period = request.args.get('period', '1d')
-    category_filter = request.args.get('category', 'all')
+    # Korrigerat: Säkrar att category_filter inte blir None
+    category_filter = request.args.get('category') or 'all'
     
     all_results = []
     tasks = []

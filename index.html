@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>G.OPTION.L - Space Bubbles & Live Data</title>
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
@@ -12,6 +12,7 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         html, body {
@@ -27,12 +28,14 @@
         #alert-banner-container {
             position: fixed;
             top: 65px;
-            right: 20px;
+            right: 15px;
+            left: 15px;
             z-index: 3000;
             display: flex;
             flex-direction: column;
             gap: 10px;
             max-width: 320px;
+            margin: 0 auto;
         }
 
         .alert-toast {
@@ -48,43 +51,44 @@
         }
 
         @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
         .alert-toast strong { color: #87CEEB; }
 
         header {
-            height: 55px;
             min-height: 55px;
             background: #0b0f19;
             border-bottom: 1px solid #1a233a;
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
-            padding: 0 16px;
+            padding: 8px 12px;
+            gap: 8px;
             z-index: 100;
         }
 
         .g-logo {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 800;
             color: #87CEEB;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             cursor: pointer;
         }
 
         .portfolio-summary {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
             background: #141b2d;
-            padding: 4px 12px;
+            padding: 4px 10px;
             border-radius: 8px;
             border: 1px solid #222d47;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .portfolio-val { font-weight: bold; color: #87CEEB; }
@@ -94,27 +98,40 @@
         .nav-controls {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
+            width: 100%;
+            justify-content: space-between;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+
+        @media (min-width: 768px) {
+            header { flex-wrap: nowrap; padding: 0 16px; height: 55px; }
+            .nav-controls { width: auto; justify-content: flex-end; }
+            .g-logo { font-size: 20px; }
+            .portfolio-summary { font-size: 12px; }
         }
 
         .time-filters, .view-toggle {
             display: flex;
             background: #141b2d;
             border-radius: 8px;
-            padding: 3px;
+            padding: 2px;
             border: 1px solid #222d47;
+            shrink: 0;
         }
 
         .btn-tab {
             background: transparent;
             border: none;
             color: #8b9bb4;
-            padding: 5px 12px;
-            font-size: 12px;
+            padding: 5px 8px;
+            font-size: 11px;
             font-weight: 600;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
+            white-space: nowrap;
         }
 
         .btn-tab.active, .btn-tab:hover {
@@ -126,34 +143,37 @@
             background: #141b2d;
             border: 1px solid #222d47;
             color: #fff;
-            padding: 6px 14px;
+            padding: 5px 10px;
             border-radius: 8px;
-            font-size: 12px;
+            font-size: 11px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
+            white-space: nowrap;
         }
 
         .search-container {
             position: relative;
+            flex: 1;
+            max-width: 140px;
         }
 
         .search-container input {
+            width: 100%;
             background: #141b2d;
             border: 1px solid #222d47;
             border-radius: 8px;
-            padding: 6px 12px 6px 30px;
+            padding: 5px 8px 5px 24px;
             color: #fff;
-            font-size: 12px;
+            font-size: 11px;
             outline: none;
-            width: 160px;
         }
 
         .search-container::before {
             content: "🔍";
             position: absolute;
-            left: 10px;
+            left: 6px;
             top: 50%;
             transform: translateY(-50%);
             font-size: 10px;
@@ -163,7 +183,6 @@
         .content-area {
             flex: 1;
             width: 100vw;
-            height: calc(100vh - 55px);
             position: relative;
             overflow: hidden;
         }
@@ -175,6 +194,7 @@
             top: 0;
             left: 0;
             background: radial-gradient(circle at center, #0a0f1d 0%, #03050a 100%);
+            touch-action: none;
         }
 
         .star-bubble {
@@ -188,29 +208,29 @@
             border: 1px solid rgba(255, 255, 255, 0.15);
             will-change: left, top;
             transition: background 0.5s ease, border-color 0.2s ease, width 0.3s ease, height 0.3s ease;
+            touch-action: none;
         }
 
         .star-bubble:active { cursor: grabbing; }
 
         .star-bubble.positive {
             background: radial-gradient(circle at center, rgba(34, 197, 94, 0.9) 0%, rgba(34, 197, 94, 0.35) 55%, rgba(5, 46, 22, 0.05) 100%);
-            box-shadow: 0 0 20px rgba(34, 197, 94, 0.25);
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.25);
         }
 
         .star-bubble.negative {
             background: radial-gradient(circle at center, rgba(239, 68, 68, 0.9) 0%, rgba(239, 68, 68, 0.35) 55%, rgba(69, 10, 10, 0.05) 100%);
-            box-shadow: 0 0 20px rgba(239, 68, 68, 0.25);
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
         }
 
         .star-bubble:hover {
             z-index: 1000 !important;
             border-color: #87CEEB;
-            box-shadow: 0 0 25px rgba(135, 206, 235, 0.4);
         }
 
-        .star-shape { font-size: 14px; color: #ffd700; margin-bottom: 2px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
-        .bubble-symbol { font-weight: 800; font-size: 15px; color: #ffffff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
-        .bubble-change { font-size: 12px; font-weight: 700; color: #ffffff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .star-shape { font-size: 12px; color: #ffd700; margin-bottom: 1px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .bubble-symbol { font-weight: 800; font-size: 13px; color: #ffffff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .bubble-change { font-size: 10px; font-weight: 700; color: #ffffff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
 
         #list-view {
             display: none;
@@ -218,12 +238,12 @@
             height: 100%;
             background: #0b0f19;
             overflow-y: auto;
-            padding: 20px;
+            padding: 10px;
         }
 
-        table { width: 100%; border-collapse: collapse; color: #fff; font-size: 13px; }
-        th { text-align: left; padding: 12px; color: #8b9bb4; border-bottom: 1px solid #1a233a; }
-        td { padding: 12px; border-bottom: 1px solid #141b2d; }
+        table { width: 100%; border-collapse: collapse; color: #fff; font-size: 12px; }
+        th { text-align: left; padding: 8px; color: #8b9bb4; border-bottom: 1px solid #1a233a; }
+        td { padding: 8px; border-bottom: 1px solid #141b2d; }
         tr:hover { background: #141b2d; cursor: pointer; }
 
         .pos-text { color: #22c55e; font-weight: bold; }
@@ -233,75 +253,84 @@
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(5px);
             z-index: 2000;
             align-items: center;
             justify-content: center;
+            padding: 10px;
         }
 
         .modal-card {
             background: #0b0f19;
             border: 1px solid #1a233a;
             border-radius: 12px;
-            width: 850px;
-            max-width: 90vw;
-            padding: 24px;
+            width: 100%;
+            max-width: 850px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 16px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 15px;
             position: relative;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
 
-        .modal-header { display: flex; align-items: center; gap: 12px; }
-        .modal-close { position: absolute; top: 15px; right: 20px; background: none; border: none; color: #8b9bb4; font-size: 24px; cursor: pointer; }
+        .modal-header { display: flex; align-items: center; gap: 10px; padding-right: 30px; }
+        .modal-close { position: absolute; top: 12px; right: 15px; background: none; border: none; color: #8b9bb4; font-size: 24px; cursor: pointer; }
 
         .fav-star-btn {
             background: transparent;
             border: 1px solid #222d47;
-            padding: 4px 10px;
+            padding: 4px 8px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             cursor: pointer;
             color: #8b9bb4;
             transition: all 0.2s;
         }
 
         .fav-star-btn.active { color: #ffd700; border-color: #ffd700; background: rgba(255, 215, 0, 0.1); }
-        .modal-title { font-size: 20px; font-weight: bold; }
+        .modal-title { font-size: 16px; font-weight: bold; }
 
         .modal-body {
-            display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        @media (min-width: 768px) {
+            .modal-body { display: grid; grid-template-columns: 300px 1fr; }
+            .modal-title { font-size: 20px; }
+            .modal-card { padding: 24px; }
         }
 
         .stats-grid {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             background: #141b2d;
-            padding: 16px;
+            padding: 12px;
             border-radius: 8px;
         }
 
-        .stat-row { display: flex; justify-content: space-between; font-size: 13px; }
+        .stat-row { display: flex; justify-content: space-between; font-size: 12px; }
         .stat-label { color: #8b9bb4; }
         .stat-value { font-weight: bold; color: #87CEEB; }
 
         .section-box {
-            margin-top: 10px;
-            padding-top: 10px;
+            margin-top: 6px;
+            padding-top: 6px;
             border-top: 1px solid #222d47;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
         }
 
-        .section-box h4 { font-size: 11px; color: #8b9bb4; text-transform: uppercase; letter-spacing: 0.5px; }
+        .section-box h4 { font-size: 10px; color: #8b9bb4; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        .input-row { display: flex; gap: 8px; }
+        .input-row { display: flex; gap: 6px; }
         .input-row input {
             width: 100%;
             background: #0b0f19;
@@ -309,7 +338,7 @@
             color: #fff;
             padding: 6px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .btn-action {
@@ -320,36 +349,41 @@
             border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
         }
 
-        #modal-chart { height: 320px; background: #141b2d; border-radius: 8px; overflow: hidden; }
+        #modal-chart { height: 260px; background: #141b2d; border-radius: 8px; overflow: hidden; width: 100%; }
 
         .filter-menu {
             display: none;
             position: absolute;
-            top: 60px; right: 240px;
+            top: 90px;
+            right: 15px;
             background: #0b0f19;
             border: 1px solid #1a233a;
             border-radius: 8px;
-            padding: 12px;
+            padding: 8px;
             z-index: 1500;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.8);
             flex-direction: column;
-            gap: 6px;
-            min-width: 190px;
+            gap: 4px;
+            min-width: 160px;
+        }
+
+        @media (min-width: 768px) {
+            .filter-menu { top: 60px; right: 200px; }
         }
 
         .filter-option {
-            font-size: 13px;
-            padding: 8px 12px;
+            font-size: 12px;
+            padding: 6px 10px;
             color: #fff;
             cursor: pointer;
             border-radius: 6px;
         }
 
         .filter-option:hover { background: #141b2d; color: #87CEEB; }
-        .filter-divider { height: 1px; background: #1a233a; margin: 4px 0; }
+        .filter-divider { height: 1px; background: #1a233a; margin: 2px 0; }
     </style>
 </head>
 <body>
@@ -358,12 +392,12 @@
 
     <header>
         <div class="g-logo" id="logo-home">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#87CEEB" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#87CEEB" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
             G.OPTION.L
         </div>
 
         <div class="portfolio-summary">
-            <div>Portfolio: <span class="portfolio-val" id="total-portfolio-val">$0.00</span></div>
+            <div>Portfölj: <span class="portfolio-val" id="total-portfolio-val">$0.00</span></div>
             <div>P/L: <span class="portfolio-pnl" id="total-portfolio-pnl">$0.00 (0%)</span></div>
         </div>
 
@@ -376,33 +410,33 @@
             </div>
 
             <button class="dropdown-btn" id="toggle-filter-menu">
-                <span id="selected-filter-label">All Assets</span> <span style="font-size:8px;">▼</span>
+                <span id="selected-filter-label">Alla</span> <span style="font-size:8px;">▼</span>
             </button>
 
             <div class="search-container">
-                <input type="text" id="search-input" placeholder="Search / Enter...">
+                <input type="text" id="search-input" placeholder="Sök...">
             </div>
 
             <div class="view-toggle">
-                <button class="btn-tab active" id="btn-view-bubbles">Bubbles</button>
-                <button class="btn-tab" id="btn-view-list">List</button>
+                <button class="btn-tab active" id="btn-view-bubbles">Bubblor</button>
+                <button class="btn-tab" id="btn-view-list">Lista</button>
             </div>
         </div>
     </header>
 
     <div class="filter-menu" id="filter-menu">
-        <div class="filter-option" data-category="all">All Assets</div>
-        <div class="filter-option" data-category="portfolio">💼 My Holdings</div>
-        <div class="filter-option" data-category="favorites">⭐ Favorites</div>
+        <div class="filter-option" data-category="all">Alla tillgångar</div>
+        <div class="filter-option" data-category="portfolio">💼 Mina Innehav</div>
+        <div class="filter-option" data-category="favorites">⭐ Favoriter</div>
         <div class="filter-divider"></div>
-        <div class="filter-option" data-category="gainers">📈 Top Gainers</div>
-        <div class="filter-option" data-category="losers">📉 Top Losers</div>
+        <div class="filter-option" data-category="gainers">📈 Vinnare</div>
+        <div class="filter-option" data-category="losers">📉 Förlorare</div>
         <div class="filter-divider"></div>
-        <div class="filter-option" data-category="stocks">📈 Stocks</div>
-        <div class="filter-option" data-category="index">📊 Index Funds</div>
-        <div class="filter-option" data-category="metals">🥇 Precious Metals</div>
-        <div class="filter-option" data-category="forex">💱 Forex</div>
-        <div class="filter-option" data-category="crypto">🪙 Crypto</div>
+        <div class="filter-option" data-category="stocks">📈 Aktier</div>
+        <div class="filter-option" data-category="index">📊 Indexfonder</div>
+        <div class="filter-option" data-category="metals">🥇 Råvaror</div>
+        <div class="filter-option" data-category="forex">💱 Valutor</div>
+        <div class="filter-option" data-category="crypto">🪙 Krypto</div>
     </div>
 
     <div class="content-area">
@@ -414,11 +448,9 @@
                     <tr>
                         <th>#</th>
                         <th>Symbol</th>
-                        <th>Name</th>
-                        <th>Price</th>
-                        <th>Change</th>
-                        <th>Holdings</th>
-                        <th>Total Value</th>
+                        <th>Pris</th>
+                        <th>+/-</th>
+                        <th>Innehav</th>
                     </tr>
                 </thead>
                 <tbody id="table-body"></tbody>
@@ -430,44 +462,44 @@
         <div class="modal-card">
             <button class="modal-close" id="modal-close">&times;</button>
             <div class="modal-header">
-                <div class="modal-title" id="m-title">Loading...</div>
-                <button class="fav-star-btn" id="fav-star-toggle">★ Favorite</button>
+                <div class="modal-title" id="m-title">Laddar...</div>
+                <button class="fav-star-btn" id="fav-star-toggle">★ Favorit</button>
             </div>
             <div class="modal-body">
                 <div class="stats-grid">
                     <div class="stat-row">
-                        <span class="stat-label">Current Price</span>
+                        <span class="stat-label">Aktuellt pris</span>
                         <span class="stat-value" id="m-price">$0.00</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">Category</span>
+                        <span class="stat-label">Kategori</span>
                         <span class="stat-value" id="m-cat">-</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">P/E Ratio</span>
+                        <span class="stat-label">P/E-tal</span>
                         <span class="stat-value" id="m-pe">-</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">Dividend Yield</span>
+                        <span class="stat-label">Direktavkastning</span>
                         <span class="stat-value" id="m-div">-</span>
                     </div>
 
                     <div class="section-box">
-                        <h4>My Holdings</h4>
+                        <h4>Mitt Innehav</h4>
                         <div class="input-row">
-                            <input type="number" id="hold-amount" placeholder="Amount" step="any">
-                            <input type="number" id="hold-buy-price" placeholder="Avg Price ($)" step="any">
+                            <input type="number" id="hold-amount" placeholder="Antal" step="any">
+                            <input type="number" id="hold-buy-price" placeholder="GAV ($)" step="any">
                         </div>
-                        <button class="btn-action" id="btn-save-holding">Save Holdings</button>
+                        <button class="btn-action" id="btn-save-holding">Spara Innehav</button>
                     </div>
 
                     <div class="section-box">
-                        <h4>🔔 Set Price Alerts ($)</h4>
+                        <h4>🔔 Prislarm ($)</h4>
                         <div class="input-row">
-                            <input type="number" id="alert-high" placeholder="Above ($)" step="any">
-                            <input type="number" id="alert-low" placeholder="Below ($)" step="any">
+                            <input type="number" id="alert-high" placeholder="Över ($)" step="any">
+                            <input type="number" id="alert-low" placeholder="Under ($)" step="any">
                         </div>
-                        <button class="btn-action" id="btn-save-alert" style="background: #22c55e; color: #fff;">Save Alert</button>
+                        <button class="btn-action" id="btn-save-alert" style="background: #22c55e; color: #fff;">Spara Larm</button>
                     </div>
                 </div>
                 <div id="modal-chart"></div>
@@ -506,7 +538,7 @@
         function setupEventListeners() {
             document.getElementById('logo-home').addEventListener('click', () => {
                 activeCategory = 'all';
-                document.getElementById('selected-filter-label').textContent = 'All Assets';
+                document.getElementById('selected-filter-label').textContent = 'Alla';
                 document.getElementById('search-input').value = '';
                 applyFilters();
             });
@@ -580,13 +612,19 @@
                 }
 
                 localStorage.setItem('g_price_alerts', JSON.stringify(priceAlerts));
-                triggerToastAlert("Alert Saved!", `Alert updated for ${currentModalSymbol}`);
+                triggerToastAlert("Larm Sparat!", `Larm uppdaterat för ${currentModalSymbol}`);
                 closeModal();
             });
 
             document.getElementById('modal-close').addEventListener('click', closeModal);
-            window.addEventListener('mousemove', onMouseMove);
-            window.addEventListener('mouseup', onMouseUp);
+            
+            // Mus-händelser
+            window.addEventListener('mousemove', onPointerMove);
+            window.addEventListener('mouseup', onPointerUp);
+
+            // Touch-händelser för mobil
+            window.addEventListener('touchmove', onPointerMove, { passive: false });
+            window.addEventListener('touchend', onPointerUp);
         }
 
         function setActiveView(view, btn) {
@@ -612,7 +650,7 @@
                 checkPriceAlerts();
                 applyFilters(isSilent);
             } catch (err) {
-                console.error("Error loading market data:", err);
+                console.error("Fel vid laddning av marknadsdata:", err);
             }
         }
 
@@ -621,12 +659,12 @@
                 const alertConfig = priceAlerts[item.raw_symbol];
                 if (alertConfig) {
                     if (alertConfig.high && item.price >= alertConfig.high) {
-                        triggerToastAlert(`🚀 PRICE ALERT: ${item.symbol}`, `Reached above $${alertConfig.high} (Now: $${item.price})`);
+                        triggerToastAlert(`🚀 PRISLARM: ${item.symbol}`, `Nådde över $${alertConfig.high} (Nu: $${item.price})`);
                         playAlertSound();
                         delete priceAlerts[item.raw_symbol].high; 
                         localStorage.setItem('g_price_alerts', JSON.stringify(priceAlerts));
                     } else if (alertConfig.low && item.price <= alertConfig.low) {
-                        triggerToastAlert(`🔻 PRICE ALERT: ${item.symbol}`, `Fell below $${alertConfig.low} (Now: $${item.price})`);
+                        triggerToastAlert(`🔻 PRISLARM: ${item.symbol}`, `Föll under $${alertConfig.low} (Nu: $${item.price})`);
                         playAlertSound();
                         delete priceAlerts[item.raw_symbol].low; 
                         localStorage.setItem('g_price_alerts', JSON.stringify(priceAlerts));
@@ -639,7 +677,7 @@
             const container = document.getElementById('alert-banner-container');
             const toast = document.createElement('div');
             toast.className = 'alert-toast';
-            toast.innerHTML = `<div><strong>${title}</strong><br><span style="font-size:12px; color:#8b9bb4;">${message}</span></div>`;
+            toast.innerHTML = `<div><strong>${title}</strong><br><span style="font-size:11px; color:#8b9bb4;">${message}</span></div>`;
             container.appendChild(toast);
 
             setTimeout(() => {
@@ -717,8 +755,8 @@
 
         function getDimensions() {
             return {
-                width: viewport.clientWidth || window.innerWidth || 1200,
-                height: viewport.clientHeight || (window.innerHeight - 55) || 800
+                width: viewport.clientWidth || window.innerWidth || 360,
+                height: viewport.clientHeight || (window.innerHeight - 100) || 600
             };
         }
 
@@ -727,9 +765,15 @@
             bubbles = [];
             const { width, height } = getDimensions();
 
+            // Anpassa storleken för mobilskärmar
+            const isMobile = width < 768;
+            const minSize = isMobile ? 55 : 75;
+            const maxSize = isMobile ? 120 : 160;
+            const baseFactor = isMobile ? 4 : 7;
+
             filteredMarketData.forEach((item) => {
                 const isPos = item.changePercent >= 0;
-                const size = Math.max(75, Math.min(160, 85 + Math.abs(item.changePercent) * 7));
+                const size = Math.max(minSize, Math.min(maxSize, (minSize + 10) + Math.abs(item.changePercent) * baseFactor));
 
                 const el = document.createElement('div');
                 el.className = `star-bubble ${isPos ? 'positive' : 'negative'}`;
@@ -746,8 +790,8 @@
                     <div class="bubble-change">${isPos ? '+' : ''}${item.changePercent}%</div>
                 `;
 
-                const maxX = Math.max(20, width - size - 20);
-                const maxY = Math.max(20, height - size - 20);
+                const maxX = Math.max(10, width - size - 10);
+                const maxY = Math.max(10, height - size - 10);
                 const x = Math.random() * maxX;
                 const y = Math.random() * maxY;
 
@@ -762,18 +806,28 @@
 
                 el.style.left = `${x}px`;
                 el.style.top = `${y}px`;
-                el.addEventListener('mousedown', (e) => onMouseDown(e, bubbleObj));
+
+                // Mus & Touch-bindningar
+                el.addEventListener('mousedown', (e) => onPointerDown(e, bubbleObj));
+                el.addEventListener('touchstart', (e) => onPointerDown(e, bubbleObj), { passive: false });
+
                 viewport.appendChild(el);
                 bubbles.push(bubbleObj);
             });
         }
 
         function updateBubblesUI() {
+            const { width } = getDimensions();
+            const isMobile = width < 768;
+            const minSize = isMobile ? 55 : 75;
+            const maxSize = isMobile ? 120 : 160;
+            const baseFactor = isMobile ? 4 : 7;
+
             filteredMarketData.forEach(item => {
                 const b = bubbles.find(bObj => bObj.symbol === item.raw_symbol);
                 if (b) {
                     const isPos = item.changePercent >= 0;
-                    const size = Math.max(75, Math.min(160, 85 + Math.abs(item.changePercent) * 7));
+                    const size = Math.max(minSize, Math.min(maxSize, (minSize + 10) + Math.abs(item.changePercent) * baseFactor));
                     const isFav = favorites.includes(item.raw_symbol);
                     const isHeld = holdings[item.raw_symbol] && holdings[item.raw_symbol].amount > 0;
                     const hasAlert = priceAlerts[item.raw_symbol] && (priceAlerts[item.raw_symbol].high || priceAlerts[item.raw_symbol].low);
@@ -788,30 +842,39 @@
             });
         }
 
-        function onMouseDown(e, bubble) {
+        function getClientCoords(e) {
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        function onPointerDown(e, bubble) {
             e.preventDefault();
             draggedBubble = bubble;
             draggedBubble.isGrabbed = true;
             isDragging = true;
             dragMovedDistance = 0;
 
+            const coords = getClientCoords(e);
             const rect = viewport.getBoundingClientRect();
-            dragOffsetX = (e.clientX - rect.left) - bubble.x;
-            dragOffsetY = (e.clientY - rect.top) - bubble.y;
-            lastMouseX = e.clientX;
-            lastMouseY = e.clientY;
+            dragOffsetX = (coords.x - rect.left) - bubble.x;
+            dragOffsetY = (coords.y - rect.top) - bubble.y;
+            lastMouseX = coords.x;
+            lastMouseY = coords.y;
             bubble.vx = 0; bubble.vy = 0;
         }
 
-        function onMouseMove(e) {
+        function onPointerMove(e) {
             if (!isDragging || !draggedBubble) return;
 
+            const coords = getClientCoords(e);
             const rect = viewport.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            const mouseX = coords.x - rect.left;
+            const mouseY = coords.y - rect.top;
 
-            const dx = e.clientX - lastMouseX;
-            const dy = e.clientY - lastMouseY;
+            const dx = coords.x - lastMouseX;
+            const dy = coords.y - lastMouseY;
             dragMovedDistance += Math.abs(dx) + Math.abs(dy);
 
             draggedBubble.vx = dx * 0.3;
@@ -819,14 +882,14 @@
             draggedBubble.x = mouseX - dragOffsetX;
             draggedBubble.y = mouseY - dragOffsetY;
 
-            lastMouseX = e.clientX;
-            lastMouseY = e.clientY;
+            lastMouseX = coords.x;
+            lastMouseY = coords.y;
         }
 
-        function onMouseUp() {
+        function onPointerUp() {
             if (isDragging && draggedBubble) {
                 draggedBubble.isGrabbed = false;
-                if (dragMovedDistance < 5) openModal(draggedBubble.symbol);
+                if (dragMovedDistance < 8) openModal(draggedBubble.symbol);
                 draggedBubble = null;
                 isDragging = false;
             }
@@ -891,16 +954,13 @@
                 const h = holdings[item.raw_symbol];
 
                 const heldText = h ? `${h.amount}` : '-';
-                const totalValText = h ? `$${(h.amount * item.price).toFixed(2)}` : '-';
 
                 tr.innerHTML = `
                     <td>${index + 1} ${isFav ? '⭐' : ''}</td>
                     <td><strong>${item.symbol}</strong></td>
-                    <td>${item.name}</td>
                     <td>$${item.price}</td>
                     <td class="${isPos ? 'pos-text' : 'neg-text'}">${isPos ? '+' : ''}${item.changePercent}%</td>
                     <td>${heldText}</td>
-                    <td>${totalValText}</td>
                 `;
 
                 tr.addEventListener('click', () => openModal(item.raw_symbol));
@@ -932,11 +992,11 @@
                 if (data.error) return;
 
                 const categoryNames = {
-                    stocks: 'Stocks',
-                    index: 'Index Funds',
-                    metals: 'Precious Metals',
-                    forex: 'Forex',
-                    crypto: 'Crypto'
+                    stocks: 'Aktier',
+                    index: 'Indexfonder',
+                    metals: 'Råvaror',
+                    forex: 'Valutor',
+                    crypto: 'Krypto'
                 };
 
                 document.getElementById('m-title').textContent = `${data.shortName} (${data.symbol})`;
@@ -947,7 +1007,7 @@
 
                 renderChart(data.chartData);
             } catch (err) {
-                console.error("Error fetching data:", err);
+                console.error("Fel vid laddning av detaljer:", err);
             }
         }
 
@@ -955,10 +1015,10 @@
             const starBtn = document.getElementById('fav-star-toggle');
             if (favorites.includes(currentModalSymbol)) {
                 starBtn.classList.add('active');
-                starBtn.innerHTML = '⭐ Favorite';
+                starBtn.innerHTML = '⭐ Favorit';
             } else {
                 starBtn.classList.remove('active');
-                starBtn.innerHTML = '★ Favorite';
+                starBtn.innerHTML = '★ Favorit';
             }
         }
 
@@ -974,7 +1034,7 @@
                 layout: { backgroundColor: '#141b2d', textColor: '#8b9bb4' },
                 grid: { vertLines: { color: '#1a233a' }, horzLines: { color: '#1a233a' } },
                 width: container.clientWidth,
-                height: 320,
+                height: 260,
             });
 
             const lineSeries = chart.addLineSeries({ color: '#87CEEB', lineWidth: 2 });
